@@ -59,10 +59,7 @@ class KeybaseNotifications:
         self.warnings = ["reverse_shell"]
 
     def _get_default_settings(self):
-        default_settings = {}
-        for notification in self.notifications:
-            default_settings[notification] = True
-        return default_settings
+        return {notification: True for notification in self.notifications}
 
     def _get_setting(self):
         # We must refresh the index before loading the settings for tests to pass -- this shouldn't be
@@ -126,28 +123,31 @@ class KeybaseNotifications:
         notification_settings = self._load_settings()
         if notification in notification_settings:
             return notification_settings[notification]
-        else:
-            # This notification is not in the settings, set it to true
-            notification_settings[notification] = True
-            self._save_settings(notification_settings)
-            return True
+        # This notification is not in the settings, set it to true
+        notification_settings[notification] = True
+        self._save_settings(notification_settings)
+        return True
 
     def get_enabled_state(self):
         return self._load_settings()
 
     def enable(self, notification):
         notification_settings = self._load_settings()
-        if notification in notification_settings:
-            if not notification_settings[notification]:
-                notification_settings[notification] = True
-                self._save_settings(notification_settings)
+        if (
+            notification in notification_settings
+            and not notification_settings[notification]
+        ):
+            notification_settings[notification] = True
+            self._save_settings(notification_settings)
 
     def disable(self, notification):
         notification_settings = self._load_settings()
-        if notification in notification_settings:
-            if notification_settings[notification]:
-                notification_settings[notification] = False
-                self._save_settings(notification_settings)
+        if (
+            notification in notification_settings
+            and notification_settings[notification]
+        ):
+            notification_settings[notification] = False
+            self._save_settings(notification_settings)
 
     def add(self, notification, details):
         details_obj = json.dumps(details, indent=2)

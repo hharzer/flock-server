@@ -78,8 +78,9 @@ def test_submit_invalid_auth(client):
     res = client.post(
         "/submit",
         json=[{"hostIdentifier": username}],
-        headers={"Authorization": f"Basic notanauthstring"},
+        headers={"Authorization": "Basic notanauthstring"},
     )
+
     assert res.status_code == 401
 
 
@@ -118,8 +119,7 @@ def test_submit_list(client):
     auth_header = get_auth_header(client, username)
 
     def submit(data):
-        res = client.post("/submit", json=data, headers=auth_header)
-        return res
+        return client.post("/submit", json=data, headers=auth_header)
 
     # Submit a log object, not a list of log objects
     res = submit({"hostIdentifier": username})

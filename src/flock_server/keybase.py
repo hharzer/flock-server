@@ -65,36 +65,34 @@ class Handler:
             keybase_admins = os.environ.get("KEYBASE_ADMIN_USERNAMES").split(",")
             if event.msg.sender.username not in keybase_admins:
                 print(
-                    "{} tried talking to me, but that user is not an admin".format(
-                        event.msg.sender.username
-                    )
+                    f"{event.msg.sender.username} tried talking to me, but that user is not an admin"
                 )
+
                 try:
                     await bot.chat.send(
                         event.msg.conv_id,
-                        "Sorry @{}. I'm not configured to talk to you.".format(
-                            event.msg.sender.username
-                        ),
+                        f"Sorry @{event.msg.sender.username}. I'm not configured to talk to you.",
                     )
+
                 except asyncio.exceptions.TimeoutError:
                     pass
                 return
 
             # Parse the command
             cmd_parts_with_mention = shlex.split(event.msg.content.text.body)
-            cmd_parts = []
-            for cmd_part in cmd_parts_with_mention:
-                if cmd_part != "@{}".format(os.environ.get("KEYBASE_USERNAME")):
-                    cmd_parts.append(cmd_part)
-            if len(cmd_parts) == 0:
+            cmd_parts = [
+                cmd_part
+                for cmd_part in cmd_parts_with_mention
+                if cmd_part != f'@{os.environ.get("KEYBASE_USERNAME")}'
+            ]
+
+            if not cmd_parts:
                 return
 
             # Validate the command
             cmd = cmd_parts.pop(0)
             if cmd not in self.cmds:
-                await self._send(
-                    bot, event, "@{}: unknown command".format(event.msg.sender.username)
-                )
+                await self._send(bot, event, f"@{event.msg.sender.username}: unknown command")
                 return
             args = cmd_parts
             if len(args) != len(self.cmds[cmd]["args"]):
@@ -105,7 +103,7 @@ class Handler:
             await self.cmds[cmd]["exec"](bot, event, args)
 
     async def _send(self, bot, event, message):
-        print("Sending message to {}: {}".format(event.msg.conv_id, repr(message)))
+        print(f"Sending message to {event.msg.conv_id}: {repr(message)}")
         try:
             await bot.chat.send(event.msg.conv_id, message)
         except asyncio.exceptions.TimeoutError:
@@ -113,11 +111,10 @@ class Handler:
 
     def _usage(self, cmd):
         if len(self.cmds[cmd]["args"]) > 0:
-            return "**{} [{}]**: {}".format(
-                cmd, "] [".join(self.cmds[cmd]["args"]), self.cmds[cmd]["desc"]
-            )
+            return f'**{cmd} [{"] [".join(self.cmds[cmd]["args"])}]**: {self.cmds[cmd]["desc"]}'
+
         else:
-            return "**{}**: {}".format(cmd, self.cmds[cmd]["desc"])
+            return f'**{cmd}**: {self.cmds[cmd]["desc"]}'
 
     async def _reply_with_usage(self, bot, event, cmd):
         await self._send(
@@ -129,21 +126,15 @@ class Handler:
         )
 
     async def _validate_username_and_get_user(self, bot, event, username):
-        # Validate the username
-        valid = True
         valid_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
-        for c in username:
-            if c not in valid_chars:
-                valid = False
-                break
+        valid = all(c in valid_chars for c in username)
         if not valid:
             await self._send(
                 bot,
                 event,
-                "@{}: The username you gave me contains invalid characters. You're not trying to be sneaky, are you?".format(
-                    event.msg.sender.username
-                ),
+                f"@{event.msg.sender.username}: The username you gave me contains invalid characters. You're not trying to be sneaky, are you?",
             )
+
             return False
 
         # Get the user
@@ -152,24 +143,21 @@ class Handler:
             await self._send(
                 bot,
                 event,
-                "@{}: No users with that username are registered :astonished:".format(
-                    event.msg.sender.username
-                ),
+                f"@{event.msg.sender.username}: No users with that username are registered :astonished:",
             )
+
             return False
 
-        user = results[0]
-        return user
+        return results[0]
 
     async def _validate_notification(self, bot, event, notification_name):
         if notification_name not in self.keybase_notifications.notifications:
             await self._send(
                 bot,
                 event,
-                "@{}: That notification does not exist :zany_face:".format(
-                    event.msg.sender.username
-                ),
+                f"@{event.msg.sender.username}: That notification does not exist :zany_face:",
             )
+
             return False
         return True
 
@@ -198,9 +186,10 @@ class Handler:
                 r = (
                     Search(index="flock-*")
                     .query("match", hostIdentifier=user_hit.username)
-                    .sort("-@timestamp")[0:1]
+                    .sort("-@timestamp")[:1]
                     .execute()
                 )
+
 
                 if len(r) > 0:
                     hit = r[0]
@@ -218,9 +207,10 @@ class Handler:
                     Search(index="flock-*")
                     .query("match", hostIdentifier=user_hit.username)
                     .query("match", name="os_version")
-                    .sort("-@timestamp")[0:1]
+                    .sort("-@timestamp")[:1]
                     .execute()
                 )
+
                 if len(r) > 0:
                     hit = r[0]
                     users[key][
@@ -239,14 +229,13 @@ class Handler:
                     response_str += f"{key} :point_right: {users[name,username][key]}\n"
             response_str += "\n"
 
-        if len(users) == 0:
+        if not users:
             await self._send(
                 bot,
                 event,
-                "@{}: There are no registered users :cry:".format(
-                    event.msg.sender.username
-                ),
+                f"@{event.msg.sender.username}: There are no registered users :cry:",
             )
+
         else:
             await self._send(
                 bot,
@@ -269,9 +258,7 @@ class Handler:
         await self._send(
             bot,
             event,
-            "@{}: User **{}** has been deleted.".format(
-                event.msg.sender.username, username
-            ),
+            f"@{event.msg.sender.username}: User **{username}** has been deleted.",
         )
 
     async def rename_user(self, bot, event, args):
@@ -290,9 +277,7 @@ class Handler:
         await self._send(
             bot,
             event,
-            "@{}: Renamed user **{}** to **{}**".format(
-                event.msg.sender.username, username, name
-            ),
+            f"@{event.msg.sender.username}: Renamed user **{username}** to **{name}**",
         )
 
     async def list_notifications(self, bot, event, args):
@@ -301,16 +286,14 @@ class Handler:
         for name in enabled_state:
             if enabled_state[name]:
                 notifications.append(
-                    ":white_check_mark: **{}** :point_right: {}".format(
-                        name, self.keybase_notifications.notifications[name]
-                    )
+                    f":white_check_mark: **{name}** :point_right: {self.keybase_notifications.notifications[name]}"
                 )
+
             else:
                 notifications.append(
-                    ":x: **{}** :point_right: {}".format(
-                        name, self.keybase_notifications.notifications[name]
-                    )
+                    f":x: **{name}** :point_right: {self.keybase_notifications.notifications[name]}"
                 )
+
         await self._send(
             bot,
             event,
@@ -327,16 +310,15 @@ class Handler:
                 await self._send(
                     bot,
                     event,
-                    "@{}: Notification already enabled".format(
-                        event.msg.sender.username
-                    ),
+                    f"@{event.msg.sender.username}: Notification already enabled",
                 )
+
             else:
                 self.keybase_notifications.enable(notification_name)
                 await self._send(
                     bot,
                     event,
-                    "@{}: Notification enabled".format(event.msg.sender.username),
+                    f"@{event.msg.sender.username}: Notification enabled",
                 )
 
     async def disable_notification(self, bot, event, args):
@@ -347,16 +329,15 @@ class Handler:
                 await self._send(
                     bot,
                     event,
-                    "@{}: Notification already disabled".format(
-                        event.msg.sender.username
-                    ),
+                    f"@{event.msg.sender.username}: Notification already disabled",
                 )
+
             else:
                 self.keybase_notifications.disable(notification_name)
                 await self._send(
                     bot,
                     event,
-                    "@{}: Notification disabled".format(event.msg.sender.username),
+                    f"@{event.msg.sender.username}: Notification disabled",
                 )
 
 
@@ -370,7 +351,7 @@ async def notification_checker(conv_id, bot):
             msg = keybase_notifications.format(
                 keybase_notification.notification_type, keybase_notification.details
             )
-            print("Sending notification: {}".format(repr(msg)))
+            print(f"Sending notification: {repr(msg)}")
             try:
                 await bot.chat.send(conv_id, msg)
             except asyncio.exceptions.TimeoutError:

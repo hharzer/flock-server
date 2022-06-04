@@ -23,11 +23,11 @@ if __name__ == "__main__":
                 ca_cert_path = None
 
             r = requests.get(elasticsearch_url, verify=ca_cert_path)
-            print("{} is ready".format(elasticsearch_url))
+            print(f"{elasticsearch_url} is ready")
             break
 
         except:
-            print("{} not ready, waiting ...".format(elasticsearch_url))
+            print(f"{elasticsearch_url} not ready, waiting ...")
             time.sleep(5)
 
     # Initialize models

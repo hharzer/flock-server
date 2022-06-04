@@ -7,19 +7,11 @@ import pykeybasebot
 
 def create_event(sender_username, body, members_type=None):
     # Calculate user_mentions
-    user_mentions = []
-    for part in body.split():
-        if part.startswith("@"):
-            user_mentions.append(part[1:])
-
+    user_mentions = [part[1:] for part in body.split() if part.startswith("@")]
     channel_name = "keybase_team_name"
     topic_name = "flock_notifications_channel"
 
-    if members_type:
-        members_type = "team"
-    else:
-        members_type = "impteamnative"  # direct chat
-
+    members_type = "team" if members_type else "impteamnative"
     channel = pykeybasebot.types.chat1.ChatChannel(
         name=channel_name,
         public=False,
@@ -47,10 +39,11 @@ def create_event(sender_username, body, members_type=None):
         content=content,
         unread=True,
     )
-    event = pykeybasebot.KbEvent(
-        type=pykeybasebot.EventType.CHAT, source=pykeybasebot.Source.REMOTE, msg=msg
+    return pykeybasebot.KbEvent(
+        type=pykeybasebot.EventType.CHAT,
+        source=pykeybasebot.Source.REMOTE,
+        msg=msg,
     )
-    return event
 
 
 @pytest.mark.asyncio

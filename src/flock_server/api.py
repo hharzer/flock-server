@@ -42,14 +42,15 @@ def create_api_app(test_config=None):
         return decorated
 
     def api_error(error_msg):
-        headers = []
-        for header in list(request.headers):
-            if header[0].lower() != "authorization":
-                headers.append(header)
+        headers = [
+            header
+            for header in list(request.headers)
+            if header[0].lower() != "authorization"
+        ]
 
         request_body = request.get_data()
         if len(request_body) > 1024:
-            request_body = request_body[0:1024] + b" [...snip...]"
+            request_body = request_body[:1024] + b" [...snip...]"
 
         error_details = {
             "method": request.method,
@@ -59,9 +60,7 @@ def create_api_app(test_config=None):
             "error_msg": error_msg,
         }
 
-        # If this is an authenticated API request, add the username
-        auth = request.authorization
-        if auth:
+        if auth := request.authorization:
             error_details["username"] = auth.username
 
         app.logger.debug(f"API error: {error_details}")
@@ -80,11 +79,10 @@ def create_api_app(test_config=None):
             .query("match", username=request.authorization["username"])
             .execute()
         )
-        if len(results) == 1:
-            user = results[0]
-            return user.name
-        else:
+        if len(results) != 1:
             return None
+        user = results[0]
+        return user.name
 
     @app.route("/es-test")
     def es_test():
@@ -111,12 +109,8 @@ def create_api_app(test_config=None):
                     "Usernames must only contain letters, numbers, '-', or '_'"
                 )
 
-        # Strip invalid characters from name
-        new_name = ""
         invalid_chars = "`{}!@#$%^&*_"
-        for c in name:
-            if c not in invalid_chars:
-                new_name += c
+        new_name = "".join(c for c in name if c not in invalid_chars)
         name = new_name
 
         # Is the user already registered?
@@ -127,10 +121,9 @@ def create_api_app(test_config=None):
             )
 
             return api_error(
-                "Your computer ({}) is already registered with this server".format(
-                    username
-                )
+                f"Your computer ({username}) is already registered with this server"
             )
+
 
         # Add user, and force a refresh of the index
         user = User(username=username, name=name, token=secrets.token_hex(16))
@@ -167,15 +160,13 @@ def create_api_app(test_config=None):
         for i, doc in enumerate(docs):
             # Item should be an object
             if type(doc) != dict:
-                return api_error("Item {} is not an object".format(i))
+                return api_error(f"Item {i} is not an object")
 
             # hostIdentifier should be the username
             if ("hostIdentifier" not in doc) or (
                 request.authorization["username"] != doc["hostIdentifier"]
             ):
-                return api_error(
-                    "Item {} does not contain the correct hostIdentifier".format(i)
-                )
+                return api_error(f"Item {i} does not contain the correct hostIdentifier")
 
         # Load the user
         results = (
@@ -186,10 +177,11 @@ def create_api_app(test_config=None):
         user = results[0]
 
         # Make a list of the types of docs that should trigger notifications
-        notification_names = []
-        for key in keybase_notifications.notifications:
-            if keybase_notifications.notifications[key]["type"] == "osquery":
-                notification_names.append(key)
+        notification_names = [
+            key
+            for key in keybase_notifications.notifications
+            if keybase_notifications.notifications[key]["type"] == "osquery"
+        ]
 
         # Dictionary that sorts incoming docs by notification type
         docs_by_type = {}
@@ -208,7 +200,7 @@ def create_api_app(test_config=None):
             doc["user_name"] = user.name
 
             # Add data
-            index = "flock-{}".format(datetime.now().strftime("%Y-%m-%d"))
+            index = f'flock-{datetime.now().strftime("%Y-%m-%d")}'
             es.index(index=index, doc_type="osquery", body=doc)
 
         # Figure out what notifications to send
@@ -225,16 +217,12 @@ def create_api_app(test_config=None):
                 removed_count = 0
                 other_count = 0
                 for doc in value:
-                    if "action" in doc:
-                        if doc["action"] == "added":
-                            added_count += 1
-                        elif doc["action"] == "removed":
-                            removed_count += 1
-                        else:
-                            other_count += 1
+                    if "action" in doc and doc["action"] == "added":
+                        added_count += 1
+                    elif "action" in doc and doc["action"] == "removed":
+                        removed_count += 1
                     else:
                         other_count += 1
-
                 keybase_notifications.add(
                     key,
                     {
@@ -265,20 +253,21 @@ def create_api_app(test_config=None):
         for i, doc in enumerate(docs):
             # Item should be an object
             if type(doc) != dict:
-                return api_error("Item {} is not an object".format(i))
+                return api_error(f"Item {i} is not an object")
 
             # Item should have type and timestamp, and maybe twig_id
             if "type" not in doc:
-                return api_error("Item {} does not contain a type field".format(i))
+                return api_error(f"Item {i} does not contain a type field")
             if "timestamp" not in doc:
-                return api_error("Item {} does not contain a timestamp field".format(i))
-            if doc["type"] == "enable_twig" or doc["type"] == "disable_twig":
-                if "twig_id" not in doc:
-                    return api_error(
-                        "Item {} is about a twig, but does not contain a twig_id field".format(
-                            i
-                        )
-                    )
+                return api_error(f"Item {i} does not contain a timestamp field")
+            if (
+                doc["type"] in ["enable_twig", "disable_twig"]
+                and "twig_id" not in doc
+            ):
+                return api_error(
+                    f"Item {i} is about a twig, but does not contain a twig_id field"
+                )
+
 
         # Add keybase notifications
         for doc in docs:
